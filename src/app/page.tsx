@@ -5,14 +5,16 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { ImageUpload } from "@/components/upload/image-upload";
 import { ImageCanvas } from "@/components/canvas/image-canvas";
+import { ExportModal } from "@/components/export/export-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/toaster";
-import { PlusIcon, ImageIcon, SaveIcon } from "lucide-react";
+import { PlusIcon, ImageIcon, SaveIcon, DownloadIcon } from "lucide-react";
 
 export default function Home() {
   const [activeImageKey, setActiveImageKey] = useState<string | null>(null);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   
   const handleImageUpload = (imageKey: string) => {
     setActiveImageKey(imageKey);
@@ -21,6 +23,10 @@ export default function Home() {
   const handleSwitchToUpload = () => {
     const uploadTab = document.querySelector('[data-state="inactive"][value="upload"]') as HTMLElement;
     if (uploadTab) uploadTab.click();
+  };
+
+  const handleOpenExportModal = () => {
+    setIsExportModalOpen(true);
   };
 
   return (
@@ -75,7 +81,8 @@ export default function Home() {
                       <SaveIcon className="size-4 mr-2" />
                       Save
                     </Button>
-                    <Button>
+                    <Button onClick={handleOpenExportModal}>
+                      <DownloadIcon className="size-4 mr-2" />
                       Export Image
                     </Button>
                   </div>
@@ -91,6 +98,13 @@ export default function Home() {
       </main>
       <Footer />
       <Toaster />
+      
+      {/* Export Modal */}
+      <ExportModal
+        open={isExportModalOpen}
+        onOpenChange={setIsExportModalOpen}
+        imageKey={activeImageKey}
+      />
     </>
   );
 } 
