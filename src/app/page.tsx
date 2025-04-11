@@ -9,8 +9,8 @@ import { ExportModal } from "@/components/export/export-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Toaster } from "@/components/ui/toaster";
 import { PlusIcon, ImageIcon, SaveIcon, DownloadIcon } from "lucide-react";
+import { Toaster } from "sonner";
 
 export default function Home() {
   const [activeImageKey, setActiveImageKey] = useState<string | null>(null);

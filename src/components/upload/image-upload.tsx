@@ -5,7 +5,7 @@ import { ImageIcon, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 interface ImageUploadProps {
   onImageUpload: (imageUrl: string) => void;
@@ -15,7 +15,6 @@ export function ImageUpload({ onImageUpload }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -43,11 +42,7 @@ export function ImageUpload({ onImageUpload }: ImageUploadProps) {
 
   const handleFileUpload = async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload an image file (JPEG, PNG, or WebP).",
-        variant: "destructive",
-      });
+      toast.error("Please upload an image file (JPEG, PNG, or WebP).");
       return;
     }
 
@@ -71,22 +66,14 @@ export function ImageUpload({ onImageUpload }: ImageUploadProps) {
       };
       
       reader.onerror = () => {
-        toast({
-          title: "Error reading file",
-          description: "An error occurred while reading the image file.",
-          variant: "destructive",
-        });
+        toast.error("An error occurred while reading the image file.");
         setIsUploading(false);
       };
       
       reader.readAsDataURL(file);
     } catch (error) {
       console.error("Upload error:", error);
-      toast({
-        title: "Upload failed",
-        description: "There was an error uploading your image.",
-        variant: "destructive",
-      });
+      toast.error("There was an error uploading your image.");
       setIsUploading(false);
     }
   };
