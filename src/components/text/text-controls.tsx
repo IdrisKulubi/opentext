@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { 
   Type, 
   Trash2, 
   ChevronUp, 
-  ChevronDown 
+  ChevronDown,
+  Circle,
 } from "lucide-react";
 
 export function TextControls() {
@@ -22,7 +24,10 @@ export function TextControls() {
     removeTextElement, 
     selectedTextElementId,
     moveForward,
-    moveBackward
+    moveBackward,
+    clearPathPoints,
+    togglePathClosed,
+    updateSpaceBetween
   } = useText();
   
   const [newText, setNewText] = useState("");
@@ -128,6 +133,46 @@ export function TextControls() {
                   />
                 </div>
               </div>
+
+              {/* Path-specific controls */}
+              {selectedElement.path.length > 0 && (
+                <div className="space-y-3 pt-3 border-t border-violet-500/20">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="path-closed" className="text-xs">Closed Path</Label>
+                    <Switch
+                      id="path-closed"
+                      checked={selectedElement.pathClosed}
+                      onCheckedChange={() => togglePathClosed(selectedElement.id)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <Label htmlFor="space-between" className="text-xs">
+                        Word Spacing: {selectedElement.spaceBetween}px
+                      </Label>
+                    </div>
+                    <Slider
+                      id="space-between"
+                      min={0}
+                      max={50}
+                      step={1}
+                      value={[selectedElement.spaceBetween]}
+                      onValueChange={(value) => updateSpaceBetween(selectedElement.id, value[0])}
+                    />
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => clearPathPoints(selectedElement.id)}
+                    className="w-full mt-2"
+                  >
+                    <Circle className="mr-2 size-4" />
+                    Clear Path
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}

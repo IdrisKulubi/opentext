@@ -1,6 +1,6 @@
 "use client";
 
-import {  useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useText } from "@/lib/context/text-context";
 import { DraggableText } from "./draggable-text";
 
@@ -36,6 +36,11 @@ export function TextLayer({ containerRef }: TextLayerProps) {
     selectTextElement(null);
   };
   
+  // Render text elements - each DraggableText will:
+  // 1. Show as regular text if not in path mode
+  // 2. Show as regular text if in path mode but no path drawn yet
+  // 3. Show as path text if in path mode with path points
+  // Users can double-click any text to toggle path mode
   return (
     <div 
       className="absolute inset-0 overflow-hidden"

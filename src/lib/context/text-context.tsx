@@ -1,16 +1,26 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, ReactNode, useContext, useState } from "react";
 
-// Define the text element type
+// Path point interface
+export interface PathPoint {
+  x: number;
+  y: number;
+}
+
+// Combined TextElement type - all text elements can optionally have path data
 export interface TextElement {
   id: string;
   text: string;
-  position: { x: number; y: number };
+  position: { x: number; y: number }; // Initial position before path is drawn
   zIndex: number;
   isSelected: boolean;
   fontSize: number;
   color: string;
+  // Path data
+  path: PathPoint[];
+  pathClosed: boolean;
+  spaceBetween: number; // Word spacing for path
 }
 
 // Define the context type
@@ -22,6 +32,10 @@ interface TextContextType {
   selectTextElement: (id: string | null) => void;
   moveForward: (id: string) => void;
   moveBackward: (id: string) => void;
+  addPathPoint: (id: string, point: PathPoint) => void;
+  clearPathPoints: (id: string) => void;
+  togglePathClosed: (id: string) => void;
+  updateSpaceBetween: (id: string, value: number) => void;
   selectedTextElementId: string | null;
 }
 
@@ -38,11 +52,14 @@ export function TextProvider({ children }: { children: ReactNode }) {
     const newElement: TextElement = {
       id: `text-${Date.now()}`,
       text,
-      position: { x: 50, y: 50 }, // Default position
-      zIndex: textElements.length + 1, // New elements on top
+      position: { x: 50, y: 50 }, // Default initial position
+      zIndex: textElements.length + 1,
       isSelected: true,
-      fontSize: 20, // Default size
-      color: "#FFFFFF", // Default color
+      fontSize: 20,
+      color: "#FFFFFF",
+      path: [], // Start with an empty path
+      pathClosed: false,
+      spaceBetween: 5,
     };
 
     // Unselect previous elements and select the new one
@@ -99,6 +116,46 @@ export function TextProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Add a point to a path
+  const addPathPoint = (id: string, point: PathPoint) => {
+    const element = textElements.find(el => el.id === id);
+    if (!element) return;
+
+    updateTextElement(id, {
+      path: [...element.path, point]
+    });
+  };
+
+  // Clear all points from a path
+  const clearPathPoints = (id: string) => {
+    const element = textElements.find(el => el.id === id);
+    if (!element) return;
+
+    updateTextElement(id, {
+      path: []
+    });
+  };
+
+  // Toggle path closed state (open or closed path)
+  const togglePathClosed = (id: string) => {
+    const element = textElements.find(el => el.id === id);
+    if (!element) return;
+
+    updateTextElement(id, {
+      pathClosed: !element.pathClosed
+    });
+  };
+
+  // Update space between repeated text
+  const updateSpaceBetween = (id: string, value: number) => {
+    const element = textElements.find(el => el.id === id);
+    if (!element) return;
+
+    updateTextElement(id, {
+      spaceBetween: value
+    });
+  };
+
   return (
     <TextContext.Provider
       value={{
@@ -109,6 +166,10 @@ export function TextProvider({ children }: { children: ReactNode }) {
         selectTextElement,
         moveForward,
         moveBackward,
+        addPathPoint,
+        clearPathPoints,
+        togglePathClosed,
+        updateSpaceBetween,
         selectedTextElementId,
       }}
     >
@@ -120,8 +181,10 @@ export function TextProvider({ children }: { children: ReactNode }) {
 // Custom hook to use the text context
 export function useText() {
   const context = useContext(TextContext);
+  
   if (context === undefined) {
     throw new Error("useText must be used within a TextProvider");
   }
+  
   return context;
 }
