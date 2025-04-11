@@ -8,7 +8,6 @@ An application that allows users to upload images and add customizable text over
 - **UI Components**: shadcn UI
 - **State Management**: React Context API or React Query
 - **Styling**: Tailwind CSS
-- **Development Assistance**: Cursor AI
 
 ## Core Features
 
