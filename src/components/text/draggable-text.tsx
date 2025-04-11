@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useText, TextElement, PathPoint } from "@/lib/context/text-context";
 
 
@@ -83,6 +83,17 @@ function SvgPathText({ textElement }: SvgPathTextProps) {
     return content.trim();
   };
 
+  // Get text style based on textElement properties
+  const getTextStyle = () => {
+    return {
+      fontFamily: textElement.fontFamily,
+      fontWeight: textElement.fontWeight,
+      fontStyle: textElement.isItalic ? 'italic' : 'normal',
+      textDecoration: textElement.isUnderlined ? 'underline' : 'none',
+      textAnchor: textElement.textAlign === 'center' ? 'middle' : 
+                  textElement.textAlign === 'right' ? 'end' : 'start',
+    };
+  };
  
   if (textElement.path.length < 2) {
     return (
@@ -94,6 +105,11 @@ function SvgPathText({ textElement }: SvgPathTextProps) {
           zIndex: textElement.zIndex,
           fontSize: `${textElement.fontSize}px`,
           color: textElement.color,
+          fontFamily: textElement.fontFamily,
+          fontWeight: textElement.fontWeight,
+          fontStyle: textElement.isItalic ? 'italic' : 'normal',
+          textDecoration: textElement.isUnderlined ? 'underline' : 'none',
+          textAlign: textElement.textAlign,
           padding: '4px',
           transform: 'translate(-50%, -50%)', // Center at the starting point
           pointerEvents: 'all', // Make sure it's clickable
@@ -112,6 +128,8 @@ function SvgPathText({ textElement }: SvgPathTextProps) {
       </div>
     );
   }
+
+  const textStyle = getTextStyle();
 
   return (
     <svg 
@@ -141,6 +159,11 @@ function SvgPathText({ textElement }: SvgPathTextProps) {
       <text
         fontSize={textElement.fontSize}
         fill={textElement.color}
+        fontFamily={textStyle.fontFamily}
+        fontWeight={textStyle.fontWeight}
+        fontStyle={textStyle.fontStyle}
+        textDecoration={textStyle.textDecoration}
+        textAnchor={textStyle.textAnchor}
         dy="0.35em" // Vertically center text on path slightly better
         className="pointer-events-auto cursor-pointer select-none"
         onClick={handleSelect} // Allow clicking text to select
@@ -168,12 +191,9 @@ function SvgPathText({ textElement }: SvgPathTextProps) {
   );
 }
 
-
-
 export function DraggableText({ textElement, canvasRect }: DraggableTextProps) {
   const { selectTextElement, addPathPoint } = useText();
   const [isPathDrawing, setIsPathDrawing] = useState(false);
-  const textRef = useRef<HTMLDivElement>(null);
 
   // --- Event Handlers ---
 
@@ -194,8 +214,8 @@ export function DraggableText({ textElement, canvasRect }: DraggableTextProps) {
       // Otherwise start a new path from the initial text position
       if (textElement.path.length === 0) {
         // Start path from text center rather than corner
-        const textCenterX = textElement.position.x + (textRef.current?.offsetWidth || 0) / 2;
-        const textCenterY = textElement.position.y + (textRef.current?.offsetHeight || 0) / 2;
+        const textCenterX = textElement.position.x;
+        const textCenterY = textElement.position.y;
         
         // Add initial point at text center
         addPathPoint(textElement.id, { x: textCenterX, y: textCenterY });
@@ -232,97 +252,246 @@ export function DraggableText({ textElement, canvasRect }: DraggableTextProps) {
       setIsPathDrawing(false);
     };
 
-    // Handle touch events
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
+      if (e.touches.length === 0) return;
+      
       const touch = e.touches[0];
       const touchX = touch.clientX - canvasRect.left;
       const touchY = touch.clientY - canvasRect.top;
-
-      // Add points to path while dragging
+      
+      // Constrain to canvas boundaries
+      const boundedX = Math.max(0, Math.min(canvasRect.width, touchX));
+      const boundedY = Math.max(0, Math.min(canvasRect.height, touchY));
+      
       const lastPoint = textElement.path[textElement.path.length - 1];
-      const distThreshold = 10;
-      if (!lastPoint || distance({x: touchX, y: touchY}, lastPoint) > distThreshold) {
-        addPathPoint(textElement.id, { x: touchX, y: touchY });
+      const distThreshold = 10; // Min distance to add new point
+      
+      if (!lastPoint || distance({x: boundedX, y: boundedY}, lastPoint) > distThreshold) {
+        addPathPoint(textElement.id, { x: boundedX, y: boundedY });
       }
-      e.preventDefault();
     };
 
     const handleTouchEnd = () => {
       setIsPathDrawing(false);
     };
 
-    // Add listeners
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.addEventListener("touchmove", handleTouchMove, { passive: false });
-    document.addEventListener("touchend", handleTouchEnd);
+    // Add event listeners
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchend', handleTouchEnd);
 
-    // Clean up
+    // Cleanup
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.removeEventListener("touchmove", handleTouchMove);
-      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isPathDrawing, canvasRect, textElement, addPathPoint]);
 
-  // --- Render Logic ---
-
-  // Always use SvgPathText once we have at least one path point
-  if (textElement.path.length > 0) {
+  // Determine if we should render path text or regular text
+  if (textElement.path.length >= 2) {
     return <SvgPathText textElement={textElement} />;
   }
+  
+  // For regular text with automatic repetition based on drag distance
+  return <AutoRepeatText textElement={textElement} handleMouseDown={handleMouseDown} />;
+}
 
-  // Otherwise render the initial draggable text
-  return (
-    <div
-      ref={textRef}
-      className={`absolute select-none ${textElement.isSelected ? 'ring-2 ring-violet-500 animate-glow' : ''} cursor-crosshair`}
-      style={{
-        left: `${textElement.position.x}px`,
-        top: `${textElement.position.y}px`,
-        zIndex: textElement.zIndex,
-        fontSize: `${textElement.fontSize}px`,
-        color: textElement.color,
-        padding: '4px',
-        borderRadius: '4px',
-        userSelect: 'none',
-        touchAction: 'none',
-      }}
-      onMouseDown={handleMouseDown}
-      onTouchStart={(e) => {
-        e.stopPropagation();
-        selectTextElement(textElement.id);
-        
-        // Start path drawing
-        setIsPathDrawing(true);
-        if (canvasRect) {
-          const touch = e.touches[0];
-          const touchX = touch.clientX - canvasRect.left;
-          const touchY = touch.clientY - canvasRect.top;
+// Component to render text with automatic repetition
+function AutoRepeatText({ 
+  textElement, 
+  handleMouseDown 
+}: { 
+  textElement: TextElement, 
+  handleMouseDown: (e: React.MouseEvent) => void
+}) {
+  const { selectTextElement, addPathPoint } = useText();
+  
+  // Calculate repetition based on current drag state
+  const getRepetitionCount = () => {
+    // When not actively dragging, use minimum repetition count
+    if (textElement.path.length <= 1) {
+      return textElement.repetitionCount;
+    }
+    
+    // Calculate repetition based on drag distance
+    const lastPoint = textElement.path[textElement.path.length - 1];
+    const firstPoint = textElement.path[0];
+    
+    const dragDistance = distance(firstPoint, lastPoint);
+    
+    // Scale repetition based on distance (1 repetition for each 30px of drag)
+    // Clamp to a reasonable range
+    return Math.max(
+      textElement.repetitionCount,
+      Math.min(20, Math.ceil(dragDistance / 30))
+    );
+  };
+  
+  const repetitionCount = getRepetitionCount();
+  const baseX = textElement.path.length === 1 ? textElement.path[0].x : textElement.position.x;
+  const baseY = textElement.path.length === 1 ? textElement.path[0].y : textElement.position.y;
+  const { horizontalSpacing, verticalSpacing, repetitionDirection } = textElement;
+  
+  // Calculate repetition grid dimensions based on direction
+  let rows = 1;
+  let cols = 1;
+  
+  if (repetitionDirection === "horizontal") {
+    cols = repetitionCount;
+  } else if (repetitionDirection === "vertical") {
+    rows = repetitionCount;
+  } else if (repetitionDirection === "both") {
+    // Create a balanced grid - approximate a square
+    rows = Math.ceil(Math.sqrt(repetitionCount));
+    cols = Math.ceil(repetitionCount / rows);
+  }
+  
+  // For single element case (no repetition yet)
+  if (repetitionCount <= 1 || textElement.path.length === 0) {
+    return (
+      <div
+        className={`absolute select-none ${textElement.isSelected ? 'ring-2 ring-violet-500 animate-glow' : ''} cursor-crosshair`}
+        style={{
+          left: `${baseX}px`,
+          top: `${baseY}px`,
+          zIndex: textElement.zIndex,
+          fontSize: `${textElement.fontSize}px`,
+          color: textElement.color,
+          fontFamily: textElement.fontFamily,
+          fontWeight: textElement.fontWeight,
+          fontStyle: textElement.isItalic ? 'italic' : 'normal',
+          textDecoration: textElement.isUnderlined ? 'underline' : 'none',
+          textAlign: textElement.textAlign,
+          padding: '4px',
+          transform: 'translate(-50%, -50%)', // Center at the starting point
+          pointerEvents: 'all', 
+          userSelect: 'none',
+          whiteSpace: 'nowrap',
+          touchAction: 'none',
+        }}
+        onMouseDown={handleMouseDown}
+        onTouchStart={(e) => {
+          e.stopPropagation();
+          selectTextElement(textElement.id);
           
-          // If text has no path points yet, start from text center
-          if (textElement.path.length === 0) {
-            const textCenterX = textElement.position.x + (textRef.current?.offsetWidth || 0) / 2;
-            const textCenterY = textElement.position.y + (textRef.current?.offsetHeight || 0) / 2;
-            addPathPoint(textElement.id, { x: textCenterX, y: textCenterY });
+          // Start path drawing with touch
+          if (e.touches.length > 0) {
+            const touch = e.touches[0];
+            
+            // Add initial point if needed
+            if (textElement.path.length === 0) {
+              addPathPoint(textElement.id, { 
+                x: textElement.position.x, 
+                y: textElement.position.y 
+              });
+            }
+            
+            // Add touch point
+            if (e.touches[0]) {
+              const touchX = touch.clientX;
+              const touchY = touch.clientY;
+              
+              const lastPoint = textElement.path[textElement.path.length - 1];
+              if (!lastPoint || distance({ x: touchX, y: touchY }, lastPoint) > 5) {
+                addPathPoint(textElement.id, { x: touchX, y: touchY });
+              }
+            }
           }
+        }}
+      >
+        {textElement.text}
+        {textElement.isSelected && (
+          <div className="absolute -bottom-5 left-0 right-0 text-xs text-center text-violet-200 font-semibold whitespace-nowrap w-40 -ml-16">
+            Drag to create repeating text
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Create the grid of repeated elements for multi-element case
+  const elements = [];
+  
+  // Create the grid of repeated elements
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      // Skip if we've rendered enough elements
+      if (row * cols + col >= repetitionCount) break;
+      
+      // Calculate position offset from base position
+      const xOffset = col * horizontalSpacing;
+      const yOffset = row * verticalSpacing;
+      
+      const isMainElement = row === 0 && col === 0;
+      
+      elements.push(
+        <div
+          key={`repeat-${row}-${col}`}
+          className={`absolute select-none ${textElement.isSelected && isMainElement ? 'ring-2 ring-violet-500 animate-glow' : ''} cursor-crosshair`}
+          style={{
+            left: `${baseX + xOffset}px`,
+            top: `${baseY + yOffset}px`,
+            zIndex: textElement.zIndex,
+            fontSize: `${textElement.fontSize}px`,
+            color: textElement.color,
+            fontFamily: textElement.fontFamily,
+            fontWeight: textElement.fontWeight,
+            fontStyle: textElement.isItalic ? 'italic' : 'normal',
+            textDecoration: textElement.isUnderlined ? 'underline' : 'none',
+            textAlign: textElement.textAlign,
+            padding: '4px',
+            transform: 'translate(-50%, -50%)', // Center at the starting point
+            pointerEvents: isMainElement ? 'all' : 'none', // Only main element is clickable for performance
+            userSelect: 'none',
+            whiteSpace: 'nowrap',
+            opacity: isMainElement ? 1 : 0.9, // Make repeated elements slightly transparent
+            touchAction: isMainElement ? 'none' : 'auto',
+          }}
+          onMouseDown={isMainElement ? handleMouseDown : undefined}
+          onTouchStart={isMainElement ? (e) => {
+            e.stopPropagation();
+            selectTextElement(textElement.id);
+            
+            // Start path drawing
+            if (e.touches.length > 0) {
+              const touch = e.touches[0];
+              
+              // Add initial point if needed
+              if (textElement.path.length === 0) {
+                addPathPoint(textElement.id, { 
+                  x: textElement.position.x, 
+                  y: textElement.position.y 
+                });
+              }
+              
+              // Add touch point
+              if (e.touches[0]) {
+                const touchX = touch.clientX;
+                const touchY = touch.clientY;
+                
+                const lastPoint = textElement.path[textElement.path.length - 1];
+                if (!lastPoint || distance({ x: touchX, y: touchY }, lastPoint) > 5) {
+                  addPathPoint(textElement.id, { x: touchX, y: touchY });
+                }
+              }
+            }
+          } : undefined}
+        >
+          {textElement.text}
           
-          // Add point at touch position if different from last point
-          const lastPoint = textElement.path[textElement.path.length - 1];
-          if (!lastPoint || distance({ x: touchX, y: touchY }, lastPoint) > 5) {
-            addPathPoint(textElement.id, { x: touchX, y: touchY });
-          }
-        }
-      }}
-    >
-      {textElement.text}
-      {textElement.isSelected && (
-        <div className="absolute -bottom-5 left-0 right-0 text-xs text-center text-violet-200 font-semibold">
-          Drag to create path
+          {/* Show guidance only on the main element */}
+          {textElement.isSelected && isMainElement && (
+            <div className="absolute -bottom-5 left-0 right-0 text-xs text-center text-violet-200 font-semibold whitespace-nowrap w-40 -ml-16">
+              Continue dragging to create more repetitions
+            </div>
+          )}
         </div>
-      )}
-    </div>
-  );
+      );
+    }
+  }
+  
+  return <>{elements}</>;
 }

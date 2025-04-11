@@ -8,6 +8,9 @@ export interface PathPoint {
   y: number;
 }
 
+// Repetition direction type
+export type RepetitionDirection = "horizontal" | "vertical" | "both";
+
 // Combined TextElement type - all text elements can optionally have path data
 export interface TextElement {
   id: string;
@@ -17,10 +20,22 @@ export interface TextElement {
   isSelected: boolean;
   fontSize: number;
   color: string;
+  // New styling properties
+  fontFamily: string;
+  fontWeight: string;
+  isItalic: boolean;
+  isUnderlined: boolean;
+  textAlign: "left" | "center" | "right";
   // Path data
   path: PathPoint[];
   pathClosed: boolean;
   spaceBetween: number; // Word spacing for path
+  // Repetition properties
+  isRepeating: boolean;
+  repetitionCount: number;
+  horizontalSpacing: number;
+  verticalSpacing: number;
+  repetitionDirection: RepetitionDirection;
 }
 
 // Define the context type
@@ -37,6 +52,13 @@ interface TextContextType {
   togglePathClosed: (id: string) => void;
   updateSpaceBetween: (id: string, value: number) => void;
   selectedTextElementId: string | null;
+  copyStylesFrom: (sourceId: string, targetId: string) => void;
+  // Repetition functions
+  toggleRepetition: (id: string) => void;
+  updateRepetitionCount: (id: string, count: number) => void;
+  updateHorizontalSpacing: (id: string, spacing: number) => void;
+  updateVerticalSpacing: (id: string, spacing: number) => void;
+  updateRepetitionDirection: (id: string, direction: RepetitionDirection) => void;
 }
 
 // Create the context with a default value
@@ -57,9 +79,21 @@ export function TextProvider({ children }: { children: ReactNode }) {
       isSelected: true,
       fontSize: 20,
       color: "#FFFFFF",
+      // New styling defaults
+      fontFamily: "Inter",
+      fontWeight: "normal",
+      isItalic: false,
+      isUnderlined: false,
+      textAlign: "center",
       path: [], // Start with an empty path
       pathClosed: false,
       spaceBetween: 5,
+      // Repetition defaults - automatic repetition enabled by default
+      isRepeating: true,
+      repetitionCount: 3,
+      horizontalSpacing: 20,
+      verticalSpacing: 20,
+      repetitionDirection: "horizontal",
     };
 
     // Unselect previous elements and select the new one
@@ -156,6 +190,81 @@ export function TextProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Toggle text repetition
+  const toggleRepetition = (id: string) => {
+    const element = textElements.find(el => el.id === id);
+    if (!element) return;
+
+    updateTextElement(id, {
+      isRepeating: !element.isRepeating
+    });
+  };
+
+  // Update repetition count
+  const updateRepetitionCount = (id: string, count: number) => {
+    const element = textElements.find(el => el.id === id);
+    if (!element) return;
+
+    updateTextElement(id, {
+      repetitionCount: count
+    });
+  };
+
+  // Update horizontal spacing
+  const updateHorizontalSpacing = (id: string, spacing: number) => {
+    const element = textElements.find(el => el.id === id);
+    if (!element) return;
+
+    updateTextElement(id, {
+      horizontalSpacing: spacing
+    });
+  };
+
+  // Update vertical spacing
+  const updateVerticalSpacing = (id: string, spacing: number) => {
+    const element = textElements.find(el => el.id === id);
+    if (!element) return;
+
+    updateTextElement(id, {
+      verticalSpacing: spacing
+    });
+  };
+
+  // Update repetition direction
+  const updateRepetitionDirection = (id: string, direction: RepetitionDirection) => {
+    const element = textElements.find(el => el.id === id);
+    if (!element) return;
+
+    updateTextElement(id, {
+      repetitionDirection: direction
+    });
+  };
+
+  // Add new function to copy styles between text elements
+  const copyStylesFrom = (sourceId: string, targetId: string) => {
+    const sourceElement = textElements.find(el => el.id === sourceId);
+    const targetElement = textElements.find(el => el.id === targetId);
+    
+    if (!sourceElement || !targetElement) return;
+    
+    updateTextElement(targetId, {
+      fontSize: sourceElement.fontSize,
+      color: sourceElement.color,
+      fontFamily: sourceElement.fontFamily,
+      fontWeight: sourceElement.fontWeight,
+      isItalic: sourceElement.isItalic,
+      isUnderlined: sourceElement.isUnderlined,
+      textAlign: sourceElement.textAlign,
+      spaceBetween: sourceElement.spaceBetween,
+      // Also copy repetition settings
+      isRepeating: sourceElement.isRepeating,
+      repetitionCount: sourceElement.repetitionCount,
+      horizontalSpacing: sourceElement.horizontalSpacing,
+      verticalSpacing: sourceElement.verticalSpacing,
+      repetitionDirection: sourceElement.repetitionDirection,
+    });
+  };
+
   return (
     <TextContext.Provider
       value={{
@@ -171,6 +280,13 @@ export function TextProvider({ children }: { children: ReactNode }) {
         togglePathClosed,
         updateSpaceBetween,
         selectedTextElementId,
+        copyStylesFrom,
+        // Repetition functions
+        toggleRepetition,
+        updateRepetitionCount,
+        updateHorizontalSpacing,
+        updateVerticalSpacing,
+        updateRepetitionDirection,
       }}
     >
       {children}
